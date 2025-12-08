@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Data Comparison Tool</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 20px; }
+    .container { max-width: 1400px; margin: 0 auto; }
+    h1 { color: #333; font-size: 22px; margin-bottom: 20px; }
+    .section { background: #fff; border: 1px solid #ddd; padding: 20px; margin-bottom: 15px; }
+    .section-title { font-weight: bold; font-size: 14px; margin-bottom: 10px; color: #333; }
+    label { display: block; font-size: 13px; color: #555; margin-bottom: 5px; }
+    textarea { width: 100%; height: 150px; padding: 10px; border: 1px solid #ccc; font-family: Consolas, monospace; font-size: 12px; resize: vertical; box-sizing: border-box; }
+    input[type="text"] { padding: 8px; border: 1px solid #ccc; font-size: 13px; box-sizing: border-box; width: 200px; }
+    input[type="file"] { font-size: 13px; }
+    .inline-form { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-end; }
+    .inline-form > div { margin-bottom: 10px; }
+    .btn { padding: 10px 20px; font-size: 14px; cursor: pointer; border: none; margin-right: 10px; margin-top: 10px; }
+    .btn-primary { background: #0066cc; color: #fff; }
+    .btn-primary:hover { background: #0055aa; }
+    .btn-secondary { background: #666; color: #fff; }
+    .btn-secondary:hover { background: #555; }
+    .btn-small { padding: 6px 12px; font-size: 12px; margin: 0; }
+    .results { display: none; }
+    .results.show { display: block; }
+    .summary { display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap; }
+    .summary-item { background: #f9f9f9; border: 1px solid #ddd; padding: 15px 20px; text-align: center; min-width: 100px; }
+    .summary-item .num { font-size: 28px; font-weight: bold; color: #333; }
+    .summary-item .label { font-size: 12px; color: #666; margin-top: 5px; }
+    .summary-item.match .num { color: #28a745; }
+    .summary-item.error .num { color: #dc3545; }
+    .status { padding: 12px 15px; margin-bottom: 15px; font-weight: bold; }
+    .status.pass { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+    .status.fail { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    .tabs { border-bottom: 1px solid #ddd; margin-bottom: 15px; }
+    .tab { display: inline-block; padding: 10px 20px; cursor: pointer; border: 1px solid transparent; border-bottom: none; margin-bottom: -1px; background: #f5f5f5; font-size: 13px; }
+    .tab.active { background: #fff; border-color: #ddd; border-bottom-color: #fff; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th, td { padding: 8px 10px; text-align: left; border: 1px solid #ddd; vertical-align: top; }
+    th { background: #f5f5f5; font-weight: bold; }
+    tr.match { background: #e8f5e9; }
+    tr.mismatch { background: #ffebee; }
+    tr.source-only { background: #e3f2fd; }
+    tr.json-only { background: #fff8e1; }
+    .table-wrap { max-height: 500px; overflow: auto; border: 1px solid #ddd; }
+    .note { font-size: 11px; color: #888; margin-top: 3px; }
+    .example-box { background: #fffde7; border: 1px solid #ffe082; padding: 15px; margin-bottom: 15px; font-size: 12px; }
+    .example-box strong { display: block; margin-bottom: 8px; }
+    .example-box code { background: #fff; padding: 2px 5px; border: 1px solid #ddd; }
+    .reason-box { background: #fff3e0; border: 1px solid #ffcc80; padding: 15px; margin-bottom: 20px; }
+    .reason-box h4 { margin: 0 0 10px 0; font-size: 14px; color: #e65100; }
+    .reason-item { margin-bottom: 8px; padding: 8px; background: #fff; border: 1px solid #ddd; font-size: 12px; }
+    .diff-detail { margin: 5px 0; padding: 8px; background: #fafafa; border: 1px solid #eee; font-size: 11px; }
+    .diff-row { margin: 3px 0; }
+    .diff-label { font-weight: bold; color: #555; display: inline-block; width: 60px; }
+    .diff-src { color: #0066cc; font-family: Consolas, monospace; }
+    .diff-json { color: #cc6600; font-family: Consolas, monospace; }
+    .warning-box { background: #fff3cd; border: 1px solid #ffc107; padding: 15px; margin-bottom: 15px; color: #856404; }
+    .warning-box strong { display: block; margin-bottom: 5px; }
+    .row-count { font-size: 12px; color: #28a745; margin-top: 8px; font-weight: bold; }
+    
+    /* Source Table Display Styles */
+    .source-table-container { 
+      border: 1px solid #ccc; 
+      max-height: 250px; 
+      overflow: auto; 
+      background: #fff; 
+    }
+    .source-table { 
+      width: 100%; 
+      border-collapse: collapse; 
+      font-family: Consolas, monospace; 
+      font-size: 12px; 
+    }
+    .source-table th { 
+      background: #e8e8e8; 
+      color: #333; 
+      font-weight: bold; 
+      padding: 6px 10px; 
+      border: 1px solid #ccc; 
+      position: sticky; 
+      top: 0; 
+      white-space: nowrap;
+    }
+    .source-table td { 
+      padding: 4px 10px; 
+      border: 1px solid #ddd; 
+      white-space: nowrap; 
+    }
+    .source-table tr:nth-child(even) { background: #fafafa; }
+    .source-table tr:hover { background: #f0f0f0; }
+    .paste-placeholder {
+      padding: 40px;
+      text-align: center;
+      color: #999;
+      font-size: 14px;
+      cursor: text;
+      min-height: 150px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px dashed #ddd;
+      background: #fafafa;
+    }
+    .paste-placeholder:hover { border-color: #0066cc; background: #f5f9ff; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Data Comparison Tool</h1>
+
+    <div class="example-box">
+      <strong>How it works:</strong>
+      <p>1. <b>Key Column</b>: Column with UNIQUE values to match rows (e.g., <code>ocn</code> if each OCN is unique)</p>
+      <p>2. <b>Columns to Compare</b>: After finding match by key, compare these column values (e.g., <code>ofid, rcrut</code>)</p>
+      <p>3. Key column must have unique values. If not unique, use a different column or combination.</p>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Step 1: Paste Databricks Table Data</div>
+      <div class="source-table-container" id="sourceTableContainer">
+        <div class="paste-placeholder" id="pastePlaceholder" tabindex="0">
+          Click here and paste your table data (Ctrl+V)
+        </div>
+        <table class="source-table" id="sourceTable" style="display:none;">
+          <thead id="sourceTableHead"></thead>
+          <tbody id="sourceTableBody"></tbody>
+        </table>
+      </div>
+      <div class="note">First row must contain column headers. Tab or comma separated.</div>
+      <div style="margin-top: 8px;">
+        <span class="row-count" id="srcRowCount"></span>
+        <button class="btn btn-small btn-secondary" id="btnClearSource" style="margin-left: 10px; display: none;">Clear</button>
+      </div>
+      <textarea id="databricksData" style="display:none;"></textarea>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Step 2: Configure Columns</div>
+      <div class="inline-form">
+        <div>
+          <label>Key Column (must have unique values):</label>
+          <input type="text" id="keyColumn">
+          <div class="note">e.g., ocn (must be unique per row)</div>
+        </div>
+        <div>
+          <label>Columns to Compare (comma separated):</label>
+          <input type="text" id="compareColumns" style="width: 300px;">
+          <div class="note">e.g., ofid, dxmt, rcrut (leave empty to compare all)</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Step 3: Provide JSON Data</div>
+      <div style="margin-bottom: 10px;">
+        <input type="file" id="jsonFile" accept=".json">
+      </div>
+      <label>Or paste JSON:</label>
+      <textarea id="jsonData"></textarea>
+    </div>
+
+    <div class="section">
+      <button class="btn btn-primary" id="btnCompare">Compare</button>
+      <button class="btn btn-secondary" id="btnClearAll">Clear All</button>
+      <button class="btn btn-secondary" id="btnExport">Export</button>
+    </div>
+
+    <div class="section results" id="results">
+      <div class="section-title">Results</div>
+      <div id="warningBox"></div>
+      <div id="status"></div>
+      <div id="configInfo" style="font-size: 12px; color: #666; margin-bottom: 15px;"></div>
+      
+      <div class="summary">
+        <div class="summary-item">
+          <div class="num" id="srcCount">0</div>
+          <div class="label">Source Rows</div>
+        </div>
+        <div class="summary-item">
+          <div class="num" id="jsonCount">0</div>
+          <div class="label">JSON Rows</div>
+        </div>
+        <div class="summary-item match">
+          <div class="num" id="matchCount">0</div>
+          <div class="label">Full Match</div>
+        </div>
+        <div class="summary-item error">
+          <div class="num" id="valueMismatch">0</div>
+          <div class="label">Value Mismatch</div>
+        </div>
+        <div class="summary-item">
+          <div class="num" id="srcOnlyCount">0</div>
+          <div class="label">Source Only</div>
+        </div>
+        <div class="summary-item">
+          <div class="num" id="jsonOnlyCount">0</div>
+          <div class="label">JSON Only</div>
+        </div>
+      </div>
+
+      <div id="mismatchReasons" class="reason-box" style="display:none;">
+        <h4>Mismatch Analysis</h4>
+        <div id="reasonsList"></div>
+      </div>
+
+      <div class="tabs" id="tabsContainer">
+        <span class="tab active" data-tab="all">All</span>
+        <span class="tab" data-tab="matched">Full Match</span>
+        <span class="tab" data-tab="mismatched">Value Mismatch</span>
+        <span class="tab" data-tab="srcOnly">Source Only</span>
+        <span class="tab" data-tab="jsonOnly">JSON Only</span>
+      </div>
+
+      <div id="tab-all" class="tab-content active"></div>
+      <div id="tab-matched" class="tab-content"></div>
+      <div id="tab-mismatched" class="tab-content"></div>
+      <div id="tab-srcOnly" class="tab-content"></div>
+      <div id="tab-jsonOnly" class="tab-content"></div>
+    </div>
+  </div>
+
+  <script>
+    var result = null;
+
+    // ============================================================
+    // SECTION 1: EVENT LISTENERS INITIALIZATION
+    // ============================================================
+    document.addEventListener('DOMContentLoaded', function() {
+      
+      // Handle paste on the placeholder area
+      var placeholder = document.getElementById('pastePlaceholder');
+      var container = document.getElementById('sourceTableContainer');
+      
+      placeholder.addEventListener('paste', handleSourcePaste);
+      placeholder.addEventListener('keydown', function(e) {
+        if (e.ctrlKey && e.key === 'v') {
+          // Allow paste
+        }
+      });
+      
+      container.addEventListener('paste', handleSourcePaste);
+      
+      // Handle JSON file upload
+      document.getElementById('jsonFile').addEventListener('change', function(e) {
+        var file = e.target.files[0];
+        if (file) {
+          var reader = new FileReader();
+          reader.onload = function(event) {
+            document.getElementById('jsonData').value = event.target.result;
+          };
+          reader.readAsText(file);
+        }
+      });
+
+      // Button click handlers
+      document.getElementById('btnCompare').addEventListener('click', runComparison);
+      document.getElementById('btnClearAll').addEventListener('click', clearAll);
+      document.getElementById('btnExport').addEventListener('click', exportResults);
+      document.getElementById('btnClearSource').addEventListener('click', clearSource);
+
+      // Tab click handlers
+      var tabs = document.querySelectorAll('#tabsContainer .tab');
+      for (var i = 0; i < tabs.length; i++) {
+        tabs[i].addEventListener('click', function() {
+          showTab(this.getAttribute('data-tab'));
+        });
+      }
+    });
+
+    // ============================================================
+    // SECTION 2: HANDLE PASTE AND DISPLAY TABLE
+    // Convert pasted text to visual table display
+    // ============================================================
+    function handleSourcePaste(e) {
+      e.preventDefault();
+      var text = (e.clipboardData || window.clipboardData).getData('text');
+      if (!text.trim()) return;
+      
+      // Store raw data in hidden textarea
+      document.getElementById('databricksData').value = text;
+      
+      // Parse and display as table
+      displaySourceTable(text);
+    }
+    
+    function displaySourceTable(text) {
+      var lines = text.trim().split('\n').filter(function(l) { return l.trim(); });
+      if (lines.length === 0) return;
+      
+      var delim = detectDelimiter(text);
+      var headers = lines[0].split(delim).map(function(h) { return h.trim(); });
+      
+      // Build header row
+      var headHtml = '<tr>';
+      headers.forEach(function(h) {
+        headHtml += '<th>' + escapeHtml(h) + '</th>';
+      });
+      headHtml += '</tr>';
+      
+      // Build data rows
+      var bodyHtml = '';
+      for (var i = 1; i < lines.length; i++) {
+        var cells = lines[i].split(delim);
+        bodyHtml += '<tr>';
+        headers.forEach(function(_, idx) {
+          bodyHtml += '<td>' + escapeHtml(cells[idx] || '') + '</td>';
+        });
+        bodyHtml += '</tr>';
+      }
+      
+      // Update DOM
+      document.getElementById('sourceTableHead').innerHTML = headHtml;
+      document.getElementById('sourceTableBody').innerHTML = bodyHtml;
+      document.getElementById('sourceTable').style.display = 'table';
+      document.getElementById('pastePlaceholder').style.display = 'none';
+      document.getElementById('btnClearSource').style.display = 'inline-block';
+      document.getElementById('srcRowCount').textContent = (lines.length - 1) + ' data rows detected';
+    }
+    
+    function clearSource() {
+      document.getElementById('databricksData').value = '';
+      document.getElementById('sourceTableHead').innerHTML = '';
+      document.getElementById('sourceTableBody').innerHTML = '';
+      document.getElementById('sourceTable').style.display = 'none';
+      document.getElementById('pastePlaceholder').style.display = 'flex';
+      document.getElementById('btnClearSource').style.display = 'none';
+      document.getElementById('srcRowCount').textContent = '';
+    }
+
+    // ============================================================
+    // SECTION 3: DELIMITER DETECTION
+    // ============================================================
+    function detectDelimiter(text) {
+      var firstLine = text.split('\n')[0];
+      if (firstLine.indexOf('\t') !== -1) return '\t';
+      if (firstLine.indexOf(',') !== -1) return ',';
+      if (firstLine.indexOf('|') !== -1) return '|';
+      return '\t';
+    }
+
+    // ============================================================
+    // SECTION 4: PARSE SOURCE DATA
+    // ============================================================
+    function parseSource(text) {
+      var lines = text.trim().split('\n').filter(function(l) { return l.trim(); });
+      if (lines.length < 1) return { columns: [], data: [] };
+      
+      var delim = detectDelimiter(text);
+      var columns = lines[0].split(delim).map(function(c) { 
+        return c.trim().toLowerCase().replace(/[^a-z0-9_]/g, ''); 
+      });
+      
+      var data = [];
+      for (var i = 1; i < lines.length; i++) {
+        var values = lines[i].split(delim).map(function(v) { return v.trim(); });
+        var row = { _srcRowNum: i };
+        columns.forEach(function(col, idx) {
+          row[col] = values[idx] || '';
+        });
+        data.push(row);
+      }
+      
+      return { columns: columns, data: data };
+    }
+
+    // ============================================================
+    // SECTION 5: PARSE JSON DATA
+    // ============================================================
+    function parseJson(text) {
+      var parsed = JSON.parse(text);
+      var arr = Array.isArray(parsed) ? parsed : (parsed.data || parsed.records || parsed.items || []);
+      
+      if (!Array.isArray(arr)) {
+        var keys = Object.keys(parsed);
+        for (var i = 0; i < keys.length; i++) {
+          if (Array.isArray(parsed[keys[i]])) {
+            arr = parsed[keys[i]];
+            break;
+          }
+        }
+        if (!Array.isArray(arr)) arr = [];
+      }
+      
+      var columnsSet = {};
+      arr.forEach(function(item) {
+        Object.keys(item).forEach(function(k) { columnsSet[k.toLowerCase()] = true; });
+      });
+      
+      var data = arr.map(function(item, idx) {
+        var row = { _jsonRowNum: idx + 1 };
+        Object.keys(item).forEach(function(k) {
+          var v = item[k];
+          row[k.toLowerCase()] = v !== null && v !== undefined ? String(v) : '';
+        });
+        return row;
+      });
+      
+      return { columns: Object.keys(columnsSet), data: data };
+    }
+
+    // ============================================================
+    // SECTION 6: CHECK FOR DUPLICATE KEYS
+    // ============================================================
+    function checkDuplicates(data, keyCol) {
+      var seen = {};
+      var duplicates = [];
+      data.forEach(function(row, idx) {
+        var key = String(row[keyCol] || '').trim();
+        if (seen[key]) {
+          duplicates.push({ key: key, rows: [seen[key], idx + 1] });
+        } else {
+          seen[key] = idx + 1;
+        }
+      });
+      return duplicates;
+    }
+
+    // ============================================================
+    // SECTION 7: ANALYZE MISMATCH REASON
+    // ============================================================
+    function analyzeReason(srcVal, jsonVal, colName) {
+      srcVal = srcVal || '';
+      jsonVal = jsonVal || '';
+      
+      var datePattern = /\d{4}-\d{2}-\d{2}/;
+      if (datePattern.test(srcVal) && datePattern.test(jsonVal)) {
+        var srcDate = srcVal.replace(/[T ]/g, ' ').substring(0, 19);
+        var jsonDate = jsonVal.replace(/[T ]/g, ' ').substring(0, 19);
+        if (srcDate === jsonDate) {
+          return 'Date/Time format difference';
+        }
+        return 'Date/Time values are different';
+      }
+      
+      if (srcVal.trim() === jsonVal.trim() && srcVal !== jsonVal) {
+        return 'Whitespace difference';
+      }
+      
+      if (srcVal.toLowerCase() === jsonVal.toLowerCase()) {
+        return 'Case difference';
+      }
+      
+      if (!isNaN(srcVal) && !isNaN(jsonVal) && parseFloat(srcVal) === parseFloat(jsonVal)) {
+        return 'Numeric format difference';
+      }
+      
+      if ((srcVal === '' && jsonVal === 'null') || (srcVal === 'null' && jsonVal === '')) {
+        return 'Empty vs null';
+      }
+      
+      return 'Value difference';
+    }
+
+    // ============================================================
+    // SECTION 8: MAIN COMPARISON LOGIC
+    // ============================================================
+    function runComparison() {
+      var srcText = document.getElementById('databricksData').value.trim();
+      var jsonText = document.getElementById('jsonData').value.trim();
+      var keyCol = document.getElementById('keyColumn').value.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
+      var compareCols = document.getElementById('compareColumns').value.trim();
+
+      if (!srcText) { alert('Paste source data first'); return; }
+      if (!jsonText) { alert('Paste or upload JSON data'); return; }
+      if (!keyCol) { alert('Enter key column name'); return; }
+
+      try {
+        var src = parseSource(srcText);
+        var json = parseJson(jsonText);
+
+        if (src.columns.indexOf(keyCol) === -1) {
+          alert('Key column "' + keyCol + '" not found in source.\nAvailable: ' + src.columns.join(', '));
+          return;
+        }
+        if (json.columns.indexOf(keyCol) === -1) {
+          alert('Key column "' + keyCol + '" not found in JSON.\nAvailable: ' + json.columns.join(', '));
+          return;
+        }
+
+        var srcDups = checkDuplicates(src.data, keyCol);
+        var jsonDups = checkDuplicates(json.data, keyCol);
+
+        var colsToCompare = [];
+        if (compareCols) {
+          colsToCompare = compareCols.split(',').map(function(c) { 
+            return c.trim().toLowerCase().replace(/[^a-z0-9_]/g, ''); 
+          });
+        } else {
+          colsToCompare = src.columns.filter(function(c) { 
+            return c !== keyCol && json.columns.indexOf(c) !== -1; 
+          });
+        }
+
+        var invalidCols = colsToCompare.filter(function(c) { 
+          return src.columns.indexOf(c) === -1 || json.columns.indexOf(c) === -1; 
+        });
+        if (invalidCols.length > 0) {
+          alert('Columns not found in both sources: ' + invalidCols.join(', '));
+          return;
+        }
+
+        var matched = [];
+        var mismatched = [];
+        var srcOnly = [];
+        var jsonOnly = [];
+
+        // Build lookup map from JSON
+        var jsonLookup = {};
+        json.data.forEach(function(row) {
+          var key = String(row[keyCol] || '').trim();
+          if (!jsonLookup[key]) jsonLookup[key] = [];
+          jsonLookup[key].push(row);
+        });
+
+        // Compare each source row
+        src.data.forEach(function(srcRow) {
+          var key = String(srcRow[keyCol] || '').trim();
+          var jsonRows = jsonLookup[key];
+
+          if (jsonRows && jsonRows.length > 0) {
+            var jsonRow = jsonRows[0];
+            var diffs = [];
+            
+            colsToCompare.forEach(function(col) {
+              var srcVal = String(srcRow[col] || '').trim();
+              var jsonVal = String(jsonRow[col] || '').trim();
+              if (srcVal !== jsonVal) {
+                var reason = analyzeReason(srcVal, jsonVal, col);
+                diffs.push({ column: col, srcVal: srcVal, jsonVal: jsonVal, reason: reason });
+              }
+            });
+
+            if (diffs.length === 0) {
+              matched.push({ key: key, srcRow: srcRow, jsonRow: jsonRow });
+            } else {
+              mismatched.push({ key: key, srcRow: srcRow, jsonRow: jsonRow, diffs: diffs });
+            }
+            
+            jsonLookup[key].shift();
+          } else {
+            srcOnly.push({ key: key, row: srcRow });
+          }
+        });
+
+        // Find unmatched JSON rows
+        json.data.forEach(function(jsonRow) {
+          var key = String(jsonRow[keyCol] || '').trim();
+          if (jsonLookup[key] && jsonLookup[key].indexOf(jsonRow) !== -1) {
+            jsonOnly.push({ key: key, row: jsonRow });
+          }
+        });
+
+        result = {
+          srcCount: src.data.length,
+          jsonCount: json.data.length,
+          matched: matched,
+          mismatched: mismatched,
+          srcOnly: srcOnly,
+          jsonOnly: jsonOnly,
+          keyCol: keyCol,
+          colsToCompare: colsToCompare,
+          srcColumns: src.columns,
+          jsonColumns: json.columns,
+          srcDuplicates: srcDups,
+          jsonDuplicates: jsonDups
+        };
+
+        displayResults();
+      } catch (e) {
+        alert('Error: ' + e.message);
+      }
+    }
+
+    // ============================================================
+    // SECTION 9: DISPLAY RESULTS
+    // ============================================================
+    function displayResults() {
+      document.getElementById('results').classList.add('show');
+      
+      document.getElementById('srcCount').textContent = result.srcCount;
+      document.getElementById('jsonCount').textContent = result.jsonCount;
+      document.getElementById('matchCount').textContent = result.matched.length;
+      document.getElementById('valueMismatch').textContent = result.mismatched.length;
+      document.getElementById('srcOnlyCount').textContent = result.srcOnly.length;
+      document.getElementById('jsonOnlyCount').textContent = result.jsonOnly.length;
+
+      document.getElementById('configInfo').innerHTML = 
+        'Key: <b>' + result.keyCol + '</b> | Compared: <b>' + (result.colsToCompare.join(', ') || 'none') + '</b>';
+
+      var warningHtml = '';
+      if (result.srcDuplicates.length > 0 || result.jsonDuplicates.length > 0) {
+        warningHtml = '<div class="warning-box">';
+        warningHtml += '<strong>Warning: Duplicate key values found</strong>';
+        if (result.srcDuplicates.length > 0) {
+          warningHtml += '<p>Source has ' + result.srcDuplicates.length + ' duplicate keys.</p>';
+        }
+        if (result.jsonDuplicates.length > 0) {
+          warningHtml += '<p>JSON has ' + result.jsonDuplicates.length + ' duplicate keys.</p>';
+        }
+        warningHtml += '</div>';
+      }
+      document.getElementById('warningBox').innerHTML = warningHtml;
+
+      var hasMismatch = result.mismatched.length > 0 || result.srcOnly.length > 0 || result.jsonOnly.length > 0;
+      document.getElementById('status').innerHTML = hasMismatch
+        ? '<div class="status fail">Differences found: ' + result.mismatched.length + ' mismatches, ' + result.srcOnly.length + ' source only, ' + result.jsonOnly.length + ' JSON only</div>'
+        : '<div class="status pass">All ' + result.matched.length + ' records match</div>';
+
+      if (result.mismatched.length > 0) {
+        document.getElementById('mismatchReasons').style.display = 'block';
+        var reasonsHtml = '';
+        result.mismatched.forEach(function(m) {
+          reasonsHtml += '<div class="reason-item">';
+          reasonsHtml += '<div><b>Row ' + m.srcRow._srcRowNum + '</b> (Key: ' + m.key + ')</div>';
+          m.diffs.forEach(function(d) {
+            reasonsHtml += '<div class="diff-detail">';
+            reasonsHtml += '<div><b>' + d.column + '</b>: ' + d.reason + '</div>';
+            reasonsHtml += '<div>Source: <span class="diff-src">' + escapeHtml(d.srcVal) + '</span></div>';
+            reasonsHtml += '<div>JSON: <span class="diff-json">' + escapeHtml(d.jsonVal) + '</span></div>';
+            reasonsHtml += '</div>';
+          });
+          reasonsHtml += '</div>';
+        });
+        document.getElementById('reasonsList').innerHTML = reasonsHtml;
+      } else {
+        document.getElementById('mismatchReasons').style.display = 'none';
+      }
+
+      renderAllTable();
+      renderMatchedTable();
+      renderMismatchedTable();
+      renderSrcOnlyTable();
+      renderJsonOnlyTable();
+    }
+
+    // ============================================================
+    // SECTION 10: UTILITY FUNCTIONS
+    // ============================================================
+    function escapeHtml(str) {
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function renderAllTable() {
+      var cols = [result.keyCol].concat(result.colsToCompare);
+      var html = '<div class="table-wrap"><table><thead><tr><th>Status</th><th>Row</th>';
+      cols.forEach(function(c) { html += '<th>' + c + '</th>'; });
+      html += '<th>Reason</th></tr></thead><tbody>';
+
+      result.matched.forEach(function(m) {
+        html += '<tr class="match"><td>Match</td><td>' + m.srcRow._srcRowNum + '</td>';
+        cols.forEach(function(c) { html += '<td>' + escapeHtml(m.srcRow[c] || '') + '</td>'; });
+        html += '<td>All values match</td></tr>';
+      });
+
+      result.mismatched.forEach(function(m) {
+        html += '<tr class="mismatch"><td>Mismatch</td><td>' + m.srcRow._srcRowNum + '</td>';
+        cols.forEach(function(c) {
+          var diff = null;
+          for (var i = 0; i < m.diffs.length; i++) {
+            if (m.diffs[i].column === c) { diff = m.diffs[i]; break; }
+          }
+          if (diff) {
+            html += '<td><div class="diff-detail">';
+            html += '<div>Src: <span class="diff-src">' + escapeHtml(diff.srcVal) + '</span></div>';
+            html += '<div>JSON: <span class="diff-json">' + escapeHtml(diff.jsonVal) + '</span></div>';
+            html += '</div></td>';
+          } else {
+            html += '<td>' + escapeHtml(m.srcRow[c] || '') + '</td>';
+          }
+        });
+        html += '<td>' + m.diffs.map(function(d) { return d.column + ': ' + d.reason; }).join(', ') + '</td></tr>';
+      });
+
+      result.srcOnly.forEach(function(s) {
+        html += '<tr class="source-only"><td>Source Only</td><td>' + s.row._srcRowNum + '</td>';
+        cols.forEach(function(c) { html += '<td>' + escapeHtml(s.row[c] || '') + '</td>'; });
+        html += '<td>Not found in JSON</td></tr>';
+      });
+
+      result.jsonOnly.forEach(function(j) {
+        html += '<tr class="json-only"><td>JSON Only</td><td>' + j.row._jsonRowNum + '</td>';
+        cols.forEach(function(c) { html += '<td>' + escapeHtml(j.row[c] || '') + '</td>'; });
+        html += '<td>Not found in Source</td></tr>';
+      });
+
+      html += '</tbody></table></div>';
+      document.getElementById('tab-all').innerHTML = html;
+    }
+
+    function renderMatchedTable() {
+      if (result.matched.length === 0) {
+        document.getElementById('tab-matched').innerHTML = '<p>No matched records</p>';
+        return;
+      }
+      var cols = [result.keyCol].concat(result.colsToCompare);
+      var html = '<div class="table-wrap"><table><thead><tr><th>Row</th>';
+      cols.forEach(function(c) { html += '<th>' + c + '</th>'; });
+      html += '</tr></thead><tbody>';
+      result.matched.forEach(function(m) {
+        html += '<tr><td>' + m.srcRow._srcRowNum + '</td>';
+        cols.forEach(function(c) { html += '<td>' + escapeHtml(m.srcRow[c] || '') + '</td>'; });
+        html += '</tr>';
+      });
+      html += '</tbody></table></div>';
+      document.getElementById('tab-matched').innerHTML = html;
+    }
+
+    function renderMismatchedTable() {
+      if (result.mismatched.length === 0) {
+        document.getElementById('tab-mismatched').innerHTML = '<p>No mismatched records</p>';
+        return;
+      }
+      var html = '<div class="table-wrap"><table><thead><tr><th>Row</th><th>Key</th><th>Column</th><th>Source</th><th>JSON</th><th>Reason</th></tr></thead><tbody>';
+      result.mismatched.forEach(function(m) {
+        m.diffs.forEach(function(d, i) {
+          html += '<tr class="mismatch">';
+          html += '<td>' + (i === 0 ? m.srcRow._srcRowNum : '') + '</td>';
+          html += '<td>' + (i === 0 ? escapeHtml(m.key) : '') + '</td>';
+          html += '<td>' + d.column + '</td>';
+          html += '<td class="diff-src">' + escapeHtml(d.srcVal) + '</td>';
+          html += '<td class="diff-json">' + escapeHtml(d.jsonVal) + '</td>';
+          html += '<td>' + d.reason + '</td></tr>';
+        });
+      });
+      html += '</tbody></table></div>';
+      document.getElementById('tab-mismatched').innerHTML = html;
+    }
+
+    function renderSrcOnlyTable() {
+      if (result.srcOnly.length === 0) {
+        document.getElementById('tab-srcOnly').innerHTML = '<p>No source-only records</p>';
+        return;
+      }
+      var cols = result.srcColumns;
+      var html = '<div class="table-wrap"><table><thead><tr><th>Row</th>';
+      cols.forEach(function(c) { html += '<th>' + c + '</th>'; });
+      html += '</tr></thead><tbody>';
+      result.srcOnly.forEach(function(s) {
+        html += '<tr><td>' + s.row._srcRowNum + '</td>';
+        cols.forEach(function(c) { html += '<td>' + escapeHtml(s.row[c] || '') + '</td>'; });
+        html += '</tr>';
+      });
+      html += '</tbody></table></div>';
+      document.getElementById('tab-srcOnly').innerHTML = html;
+    }
+
+    function renderJsonOnlyTable() {
+      if (result.jsonOnly.length === 0) {
+        document.getElementById('tab-jsonOnly').innerHTML = '<p>No JSON-only records</p>';
+        return;
+      }
+      var cols = result.jsonColumns;
+      var html = '<div class="table-wrap"><table><thead><tr><th>Row</th>';
+      cols.forEach(function(c) { html += '<th>' + c + '</th>'; });
+      html += '</tr></thead><tbody>';
+      result.jsonOnly.forEach(function(j) {
+        html += '<tr><td>' + j.row._jsonRowNum + '</td>';
+        cols.forEach(function(c) { html += '<td>' + escapeHtml(j.row[c] || '') + '</td>'; });
+        html += '</tr>';
+      });
+      html += '</tbody></table></div>';
+      document.getElementById('tab-jsonOnly').innerHTML = html;
+    }
+
+    function showTab(name) {
+      var allTabs = document.querySelectorAll('.tab');
+      var allContents = document.querySelectorAll('.tab-content');
+      for (var i = 0; i < allTabs.length; i++) { allTabs[i].classList.remove('active'); }
+      for (var j = 0; j < allContents.length; j++) { allContents[j].classList.remove('active'); }
+      var clickedTab = document.querySelector('.tab[data-tab="' + name + '"]');
+      if (clickedTab) clickedTab.classList.add('active');
+      document.getElementById('tab-' + name).classList.add('active');
+    }
+
+    function clearAll() {
+      clearSource();
+      document.getElementById('jsonData').value = '';
+      document.getElementById('keyColumn').value = '';
+      document.getElementById('compareColumns').value = '';
+      document.getElementById('results').classList.remove('show');
+      result = null;
+    }
+
+    function exportResults() {
+      if (!result) { alert('Run comparison first'); return; }
+      var data = {
+        config: { keyColumn: result.keyCol, comparedColumns: result.colsToCompare },
+        summary: {
+          sourceRows: result.srcCount,
+          jsonRows: result.jsonCount,
+          matched: result.matched.length,
+          mismatched: result.mismatched.length,
+          sourceOnly: result.srcOnly.length,
+          jsonOnly: result.jsonOnly.length
+        },
+        mismatched: result.mismatched,
+        sourceOnly: result.srcOnly,
+        jsonOnly: result.jsonOnly
+      };
+      var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'comparison-result.json';
+      a.click();
+    }
+  </script>
+</body>
+</html>
